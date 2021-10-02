@@ -1,0 +1,73 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: postgres-stateful-template
+objects:
+  - kind: StatefulSet
+    apiVersion: apps/v1
+    metadata:
+      name: postgres
+    spec:
+      serviceName: "postgres"
+      replicas: 1
+      selector:
+        matchLabels:
+          app: postgres
+      template:
+        metadata:
+          labels:
+            app: postgres
+        spec:
+          containers:
+            - name: postgres
+              image: ${DOCKER_REPO}timescale/timescaledb-postgis:latest-pg13
+              args:
+                - -c
+                - max_connections=1000
+                - -c
+                -  shared_buffers=1024MB
+              envFrom:
+                - configMapRef:
+                    name: postgres-config
+              ports:
+                - containerPort: 5432
+                  name: postgredb
+              volumeMounts:
+                - name: postgredb
+                  mountPath: /var/lib/postgresql/data
+                  subPath: postgres
+              env:
+                - name: PGDATA
+                  value: /var/lib/postgresql/data/postgres
+                - name: LANG
+                  value: tr_TR.UTF-8
+                - name:  LC_COLLATE
+                  value: tr_TR.UTF-8
+                - name: LC_CTYPE
+                  value: tr_TR.UTF-8
+              readinessProbe:
+                exec:
+                  command: ["psql", "-w", "-U", "postgres", "-d", "postgres", "-c", "SELECT 1"]
+                initialDelaySeconds: 120
+                periodSeconds: 60
+                timeoutSeconds: 30
+                successThreshold: 1
+                failureThreshold: 3
+      volumeClaimTemplates:
+        - metadata:
+            name: postgredb
+          spec:
+            accessModes: [ "ReadWriteMany" ]
+            storageClassName: ${STORAGE_CLS}
+            resources:
+              requests:
+                storage: 50Gi
+parameters:
+  - name: STORAGE_CLS
+    displayName: storageClassName
+    description: Storage Class Name
+    required: true
+  - name: DOCKER_REPO
+    displayName: DockerRepo
+    description: Docker Registry Repo URL Prefix
+    required: false

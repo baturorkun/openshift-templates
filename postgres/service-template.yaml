@@ -1,0 +1,30 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: postgres-service-template
+objects:
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: postgres
+      labels:
+        app: postgres
+    spec:
+      ports:
+        - protocol: "TCP"
+          port: 5432
+          targetPort: 5432
+          nodePort: ${NODE_PORT}
+      selector:
+        app: "postgres"
+      portalIP: "None"
+      type: "NodePort"
+      #type: "ClusterIP"
+      sessionAffinity: "None"
+    status:
+      loadBalancer: {}
+parameters:
+  - name: NODE_PORT
+    displayName: NodePort
+    description: Node Port
+    required: true

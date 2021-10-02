@@ -1,0 +1,72 @@
+kind: Template
+apiVersion: template.openshift.io/v1
+metadata:
+  name: pgadmin-template
+objects:
+  - kind: StatefulSet
+    apiVersion: apps/v1
+    metadata:
+      name: pgadmin
+    spec:
+      serviceName: "pgadmin"
+      replicas: 1
+      selector:
+        matchLabels:
+          app: pgadmin
+      template:
+        metadata:
+          labels:
+            app: pgadmin
+        spec:
+          securityContext:
+            runAsUser: 5050
+            runAsGroup: 5050
+            fsGroup: 5050
+          containers:
+            - name: pgadmin
+              image: ${DOCKER_REPO}dpage/pgadmin4
+              securityContext:
+                runAsUser: 5050
+                runAsGroup: 5050
+                fsGroup: 5050
+              volumeMounts:
+                  - name: pgadmin-storage
+                    mountPath: /var/lib/pgadmin
+              env:
+               - name: PGADMIN_LISTEN_PORT
+                 value: "5002"
+               - name: PGADMIN_LISTEN_ADDRESS
+                 value: 0.0.0.0
+               - name: PGADMIN_DEFAULT_EMAIL
+                 value: "pgadmin@rmx.rmx"
+               - name: PGADMIN_DEFAULT_PASSWORD
+                 value: "94509450"
+              readinessProbe:
+                exec:
+                   command:
+                   - wget
+                   - -qO-
+                   - http://127.0.0.1:5002/misc/ping
+                initialDelaySeconds: 120
+                periodSeconds: 60
+                timeoutSeconds: 30
+                successThreshold: 1
+                failureThreshold: 3
+      volumeClaimTemplates:
+        - metadata:
+            name: pgadmin-storage
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            storageClassName: ${STORAGE_CLS}
+            resources:
+              requests:
+                storage: 100Mi
+parameters:
+  - name: STORAGE_CLS
+    displayName: storageClassName
+    description: Storage Class Name
+    required: true
+  - name: DOCKER_REPO
+    displayName: DockerRepo
+    description: Docker Registry Repo URL Prefix
+    required: false
